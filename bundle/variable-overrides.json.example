@@ -1,0 +1,5 @@
+{
+  "demo_users": "user.a@example.com,user.b@example.com",
+  "mcp_hosts": "service-desk-mcp.<aca-env-domain>,asset-inventory-mcp.<aca-env-domain>",
+  "genie_space_id": "<genie space id>"
+}

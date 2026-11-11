@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Operations Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b1f24; --muted:#5b6672; --line:#dde1e6; --ok:#1f7a4d; --bad:#b42318; --accent:#2457c5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 20px; background:var(--card); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-size:16px; margin:0; }
+  #who { color:var(--muted); }
+  main { display:grid; grid-template-columns: 1fr 420px; gap:16px; padding:16px; height:calc(100vh - 54px); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; display:flex; flex-direction:column; min-height:0; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0; padding:10px 14px; border-bottom:1px solid var(--line); }
+  #log { flex:1; overflow:auto; padding:14px; }
+  .msg { margin:0 0 12px; padding:10px 12px; border-radius:8px; max-width:90%; white-space:pre-wrap; }
+  .user { background:#e8eefc; margin-left:auto; }
+  .bot { background:#f1f3f5; }
+  .bot table { border-collapse:collapse; margin:6px 0; white-space:normal; }
+  .bot td, .bot th { border:1px solid var(--line); padding:3px 6px; }
+  form { display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  input { flex:1; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  button { padding:9px 14px; border:0; border-radius:6px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.5; }
+  .side { display:grid; grid-template-rows: auto 1fr; gap:16px; min-height:0; }
+  #status div { padding:6px 14px; display:flex; justify-content:space-between; gap:8px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  #trace { overflow:auto; padding:8px 14px; }
+  .step { border-bottom:1px dashed var(--line); padding:8px 0; }
+  .step b { font-family:ui-monospace, monospace; }
+  .path { font-size:12px; color:var(--muted); }
+  pre { margin:4px 0 0; font-size:12px; white-space:pre-wrap; word-break:break-word; color:#333; max-height:160px; overflow:auto; }
+  .chips { padding:0 12px 10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:#eef1f5; border:1px solid var(--line); color:var(--ink); padding:5px 9px; font-size:12px; }
+</style>
+</head>
+<body>
+<header><h1>Operations Assistant</h1><span id="who"></span></header>
+<main>
+  <section>
+    <h2>Chat</h2>
+    <div id="log"></div>
+    <div class="chips">
+      <button class="chip">Which sites had the worst SLA performance last quarter?</button>
+      <button class="chip">Show open high-priority requests at that site</button>
+      <button class="chip">Show my open requests</button>
+      <button class="chip">Check the warranty of the asset in REQ-1042 and create a follow-up request</button>
+      <button class="chip">Set REQ-1042 to Resolved</button>
+    </div>
+    <form id="f"><input id="q" placeholder="Ask about sites, requests or assets…" autocomplete="off"><button id="send">Send</button></form>
+  </section>
+  <div class="side">
+    <section><h2>Internal systems (as you)</h2><div id="status"><div>Checking…</div></div></section>
+    <section><h2>Tool calls</h2><div id="trace"></div></section>
+  </div>
+</main>
+<script>
+const history = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function render(md) {  // tiny markdown: tables, bold, line breaks
+  const lines = esc(md).split('\n'); let out = '', table = [];
+  const flush = () => { if (table.length) {
+      const rows = table.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r));
+      out += '<table>' + rows.map((r, i) => '<tr>' + r.replace(/^\||\|$/g,'').split('|')
+        .map(c => i ? `<td>${c.trim()}</td>` : `<th>${c.trim()}</th>`).join('') + '</tr>').join('') + '</table>';
+      table = []; } };
+  for (const l of lines) { if (l.trim().startsWith('|')) table.push(l.trim()); else { flush(); out += l + '\n'; } }
+  flush(); return out.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+}
+function add(role, text) {
+  const d = document.createElement('div'); d.className = 'msg ' + role;
+  d.innerHTML = role === 'bot' ? render(text) : esc(text); $('log').appendChild(d); $('log').scrollTop = 1e9;
+}
+async function status() {
+  const r = await fetch('api/status'); const s = await r.json();
+  $('who').textContent = s.user ? 'Signed in as ' + s.user : '';
+  $('status').innerHTML = (s.services || []).map(x =>
+    `<div><span>${esc(x.service)}</span><span class="${x.ok ? 'ok' : 'bad'}">${x.ok ? '● reachable · ' : '● '}${esc(x.detail)}</span></div>`).join('')
+    + (s.services?.some(x => !x.ok) ? `<div><a href="${s.mcp_page}" target="_blank">Sign in / check access in Unity Gateway → MCPs</a></div>` : '');
+}
+async function ask(q) {
+  add('user', q); history.push({role: 'user', content: q}); $('send').disabled = true;
+  try {
+    const r = await fetch('api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({messages: history})});
+    const d = await r.json();
+    const answer = d.answer || ('Error: ' + d.error);
+    add('bot', answer); history.push({role: 'assistant', content: answer});
+    for (const t of d.trace || []) {
+      const el = document.createElement('div'); el.className = 'step';
+      el.innerHTML = `<b>${esc(t.tool)}</b> <span class="path">${esc(t.path)} · ${t.ms} ms</span><pre>${esc(JSON.stringify(t.args))}\n→ ${esc(t.result)}</pre>`;
+      $('trace').prepend(el);
+    }
+  } catch (e) { add('bot', 'Error: ' + e); }
+  $('send').disabled = false; status();
+}
+$('f').onsubmit = e => { e.preventDefault(); const q = $('q').value.trim(); if (q) { $('q').value = ''; ask(q); } };
+document.querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
+status();
+</script>
+</body>
+</html>

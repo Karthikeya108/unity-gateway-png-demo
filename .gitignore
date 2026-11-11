@@ -1,0 +1,23 @@
+# Local state and generated IDs (never commit)
+.state/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+crash.log
+*.log
+
+# Databricks bundle state and local variable overrides
+**/.databricks/
+
+# Build artefacts
+mcp/wheels/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+
+# Local tool config
+.isaac/

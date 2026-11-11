@@ -1,0 +1,14 @@
+subscription_id   = "00000000-0000-0000-0000-000000000000"
+tenant_id         = "00000000-0000-0000-0000-000000000000"
+owner             = "you@example.com"
+location          = "northeurope" # same region as the workspace
+mcp_api_app_id    = "<MCP_API_APP_ID from .state/entra.env>"
+mcp_client_app_id = "<MCP_CLIENT_APP_ID from .state/entra.env>"
+demo_users        = "user.a@example.com,user.b@example.com"
+
+# Internal MCP servers (one container app each). Adding one needs no NCC/PNG/DNS change:
+# mcp_servers = {
+#   "service-desk-mcp"    = { server = "service_desk" }
+#   "asset-inventory-mcp" = { server = "asset_inventory" }
+#   "knowledge-base-mcp"  = { image = "knowledge-base-mcp:v1" }
+# }

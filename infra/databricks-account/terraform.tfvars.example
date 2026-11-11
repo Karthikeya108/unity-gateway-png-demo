@@ -1,0 +1,10 @@
+account_id      = "00000000-0000-0000-0000-000000000000"
+account_profile = "my-account-profile"
+workspace_id    = 1234567890123456
+region          = "northeurope"
+
+group_members = {
+  "png-demo-admins"      = ["user.a@example.com"]
+  "png-demo-users"       = ["user.a@example.com", "user.b@example.com"]
+  "png-demo-assets-only" = []
+}
